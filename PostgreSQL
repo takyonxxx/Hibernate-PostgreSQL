@@ -1,0 +1,35 @@
+
+sudo -u postgres createuser -W user1
+sudo -u postgres createdb testdb -O user1
+
+//ALTER USER user1 WITH ENCRYPTED PASSWORD '0000';
+
+//create schema public;
+//GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO user1;
+
+sudo -i -u postgres
+psql testdb
+
+DROP TABLE IF EXISTS person, actions;
+
+CREATE TABLE IF NOT EXISTS person (
+    id serial PRIMARY KEY, 
+    name VARCHAR(25)
+);
+
+CREATE TABLE IF NOT EXISTS actions (
+    id serial PRIMARY KEY, 
+    person_id INT references person(id), date DATE, dest VARCHAR(100)
+);
+
+INSERT INTO person(id, name) VALUES(1, 'Gökhan Biliyor');
+INSERT INTO person(id, name) VALUES(2, 'Türkay Biliyor');
+SELECT * FROM person;
+
+INSERT INTO actions(id, person_id, date,dest) VALUES(1, 1, '2018-01-01', 'action1');
+INSERT INTO actions(id, person_id, date,dest) VALUES(2, 2, '2018-01-01', 'action2');
+
+ALTER TABLE person DROP COLUMN person_image;
+
+ALTER TABLE person ADD COLUMN image_name VARCHAR(50);
+ALTER TABLE person ADD COLUMN image bytea;
