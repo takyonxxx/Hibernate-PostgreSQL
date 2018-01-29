@@ -1,4 +1,5 @@
 package com.biliyor.entity;
+
 import org.hibernate.HibernateException;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -9,23 +10,24 @@ public class HibernateConnector {
 	private static HibernateConnector me;
 	private Configuration cfg;
 	private SessionFactory sessionFactory;
+	private static String user;
+	private static String password;
+	private static int port;
 
-	private HibernateConnector() throws HibernateException {
+	public HibernateConnector(String user, String password, int port) throws HibernateException {
 
-		// build the config
+		HibernateConnector.user = user;
+		HibernateConnector.password = password;
+		HibernateConnector.port = port;		   
+
 		cfg = new Configuration();
-
-		/**
-		 * Connection Information..
-		 */
-
 		cfg.setProperty("hibernate.connection.driver_class", "org.postgresql.Driver");
 		cfg.setProperty("hibernate.connection.url", "jdbc:postgresql://localhost/testdb");
-		cfg.setProperty("hibernate.connection.username", "user1");
-		cfg.setProperty("hibernate.connection.password", "0000");
-		cfg.setProperty("hibernate.show_sql", "true");    
-		cfg.setProperty("hibernate.format_sql", "true");    
-		cfg.setProperty("hibernate.hbm2ddl.auto", "update");    
+		cfg.setProperty("hibernate.connection.username", user);
+		cfg.setProperty("hibernate.connection.password", password);
+		cfg.setProperty("hibernate.show_sql", "true");
+		cfg.setProperty("hibernate.format_sql", "true");
+		cfg.setProperty("hibernate.hbm2ddl.auto", "update");
 
 		cfg.addResource("com/biliyor/entity/Person.hbm.xml");
 
@@ -34,7 +36,7 @@ public class HibernateConnector {
 
 	public static synchronized HibernateConnector getInstance() throws HibernateException {
 		if (me == null) {
-			me = new HibernateConnector();
+			me = new HibernateConnector(user,password,port);
 		}
 
 		return me;
@@ -42,6 +44,10 @@ public class HibernateConnector {
 
 	public Session getSession() throws HibernateException {
 		Session session = sessionFactory.openSession();
+
+		
+		System.out.println("User info " + user + " " + password);		
+	
 		if (!session.isConnected()) {
 			this.reconnect();
 		}

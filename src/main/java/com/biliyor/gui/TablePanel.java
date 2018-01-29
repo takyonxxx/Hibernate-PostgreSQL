@@ -2,8 +2,6 @@ package com.biliyor.gui;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
@@ -15,34 +13,34 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Vector;
 
-import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
-import javax.swing.JPopupMenu;
 import javax.swing.JTable;
-import javax.swing.table.DefaultTableModel;
+import javax.swing.ListSelectionModel;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.table.TableModel;
 
 import org.hibernate.HibernateException;
-
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 
 import com.biliyor.entity.Address;
 import com.biliyor.entity.HibernateConnector;
 import com.biliyor.entity.Person;
+import com.biliyor.entity.PersonTableModel;
 
 public class TablePanel extends JTable {
 
 	private static TablePanel instance;
-	DefaultTableModel model = null;
 	private static Session session = null;
 	private String name;
 	private String city;
 	private String date;
-
+	private PersonTableModel tableModel;
 	private ToolBar toolBar;
 	public Vector<Vector<Object>> tableData;
-	private JPopupMenu popup;
 
 	public static TablePanel getInstance() {
 
@@ -58,42 +56,13 @@ public class TablePanel extends JTable {
 		setForeground(Color.black);
 		Font font = new Font("", 1, 14);
 		setFont(font);
-		setRowHeight(25);
-
-		popup = new JPopupMenu();
-		JMenuItem removeItem = new JMenuItem("Delete Row");
-		popup.add(removeItem);
-
-		addMouseListener(new MouseAdapter() {
-
-			public void mousePressed(MouseEvent e) {
-
-				int row = rowAtPoint(e.getPoint());
-				getSelectionModel().setSelectionInterval(row, row);
-
-				if (e.getButton() == MouseEvent.BUTTON3) {
-					popup.show(instance, e.getX(), e.getY());
-				}
-			}
-		});
-
-		removeItem.addActionListener(new ActionListener() {
-
-			public void actionPerformed(ActionEvent e) {
-				int row = getSelectedRow();// TODO Auto-generated method stub
-				int i = (int) tableData.get(row).elementAt(0);
-				deleteDb(i);
-			}
-		});
-
+		setRowHeight(25);		
+		setRowSelectionAllowed(true);	
+		
+		tableModel = new PersonTableModel();
+		
 		toolBar = ToolBar.getInstance();
 		toolBar.setDbListener(new DbListener() {
-
-			public void setValues(String name, String city, String date) {
-				setName(name);
-				setCity(city);
-				setDate(date);
-			}
 
 			public void setConnectionEnable(Boolean enable) {
 				// TODO Auto-generated method stub
@@ -102,9 +71,14 @@ public class TablePanel extends JTable {
 				else
 					disConnectDb();
 			}
-		});
 
-		connectDb();
+			@Override
+			public void setValues(int id, String name, String city, String date) {
+				setName(name);
+				setCity(city);
+				setDate(date);				
+			}
+		});
 
 	}
 
@@ -190,7 +164,6 @@ public class TablePanel extends JTable {
 			Query query = session.createQuery("FROM Person where name LIKE name(:name) ");
 			query.setParameter("name", "%" + filter + "%");
 			List resultList = query.list();
-			System.out.println(resultList.toString());
 			setTableModel(resultList);
 			session.getTransaction().commit();
 
@@ -205,24 +178,9 @@ public class TablePanel extends JTable {
 	}
 
 	private void setTableModel(List<?> resultList) {
-		Vector<String> tableHeaders = new Vector<String>();
-		tableData = null;
-		tableData = new Vector<Vector<Object>>();
-		tableHeaders.add("Id");
-		tableHeaders.add("Name");
-		tableHeaders.add("City");
-		tableHeaders.add("Date");
 
-		for (Object o : resultList) {
-			Person person = (Person) o;
-			Vector<Object> oneRow = new Vector<Object>();
-			oneRow.add(person.getId());
-			oneRow.add(person.getName());
-			oneRow.add(person.getAddress().getCity());
-			oneRow.add(person.getAddress().getDate());
-			tableData.add(oneRow);
-		}
-		setModel(new DefaultTableModel(tableData, tableHeaders));
+		tableModel.setModel(resultList);
+		setModel(tableModel.getModel());
 	}
 
 	public void saveToFile(File file) throws IOException {
@@ -248,37 +206,38 @@ public class TablePanel extends JTable {
 	public void loadFromFile(File file) throws IOException, ClassNotFoundException {
 
 		String line;
-		BufferedReader reader;	
+		BufferedReader reader;
 		try {
 			reader = new BufferedReader(new FileReader(file));
 			while ((line = reader.readLine()) != null) {
-				
-				//((DefaultTableModel) getModel()).addRow(line.split(","));
+
+				// ((DefaultTableModel) getModel()).addRow(line.split(","));
 				String[] parts = line.split(",");
-				
+
 				String name = parts[1];
 				String city = parts[2];
 				String date = parts[3];
-				
-				java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+				java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter
+						.ofPattern("yyyy-MM-dd");
 				java.time.LocalDate textFieldAsDate = java.time.LocalDate.parse(date, formatter);
 				java.sql.Date sqlDate = java.sql.Date.valueOf(textFieldAsDate);
 
-				//System.out.println(name + " " + city + " " + date);
-				
+				// System.out.println(name + " " + city + " " + date);
+
 				Address address = new Address(city, sqlDate);
 				Person person = new Person(name, address);
 
 				session.beginTransaction();
 				session.saveOrUpdate(person);
-				session.getTransaction().commit();	
+				session.getTransaction().commit();
 			}
 			reader.close();
 		} catch (IOException e) {
 			JOptionPane.showMessageDialog(null, "Error");
 			e.printStackTrace();
 		}
-		
+
 		searchDbByName("");
 	}
 

@@ -1,0 +1,17 @@
+
+git init
+git remote add origin https://github.com/takyonxxx/Hibernate-PostgreSQL.git
+git config --global user.email "turkaybiliyor@hotmail.com"
+git config --global user.name "Türkay Biliyor"
+git add -A 
+git commit -am "Hibernate-PostgreSQL"
+git push -u origin master
+
+
+echo "# Hibernate-PostgreSQL" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/takyonxxx/Hibernate-PostgreSQL.git
+git push -u origin master
+

@@ -13,6 +13,7 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.File;
 import java.io.IOException;
+import java.util.prefs.Preferences;
 
 import javax.swing.BorderFactory;
 import javax.swing.JCheckBoxMenuItem;
@@ -30,13 +31,12 @@ import javax.swing.border.Border;
 import javax.swing.filechooser.FileFilter;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-//Mnemonics: hafıza geliştirme
-//Accelerator: hızlandırıcı
+import com.biliyor.entity.HibernateConnector;
 
 public class MainFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
 	private ControlPanel controlPanel;
-	private TablePanel tablePanel;
+	private TablePanel dBHiberTable;
 	private SearchPanel searchPanel;
 	private ToolBar toolBar;
 	private JSplitPane splitPane;
@@ -44,6 +44,12 @@ public class MainFrame extends JFrame {
 	private JFileChooser fileChooser;
 	private Dimension sizeOffControlPanel;
 	private MessagePanel messagePanel;
+	private PrefsDialog prefsDialog;
+	private Preferences prefs;
+	private HibernateConnector dbConnector;
+	private static String user;
+	private static String password;
+	private static int port;
 
 	public MainFrame() {
 
@@ -54,20 +60,74 @@ public class MainFrame extends JFrame {
 		setSize(800, 480);
 		setLocationRelativeTo(null);
 		setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		
+		prefs = Preferences.userRoot().node("db");  
+		prefsDialog = new PrefsDialog(this);
+		user = prefs.get("user", "");
+		password = prefs.get("password", "");
+		port = prefs.getInt("port", 1000);
+		prefsDialog.setDefaults(user, password, port);  
+		
+		prefsDialog.setPrefsListener(new PrefsListener() {
+			public void preferencesSet(String user, String password, int port) {
+				prefs.put("user", user);
+				prefs.put("password", password);
+				prefs.putInt("port", port);		
+					
+				if(user.length() == 0 || password.length() == 0)
+				{
+					int action = JOptionPane.showConfirmDialog(MainFrame.this, "You should insert username and password!",
+							"Warning", JOptionPane.OK_CANCEL_OPTION);
 
-		fileChooser = new JFileChooser();
-		FileFilter filter = new FileNameExtensionFilter("Text Files .txt", "txt");
-		fileChooser.setFileFilter(filter);
+					if (action == JOptionPane.OK_OPTION) {
 
-		setJMenuBar(createMenuBar());
+						WindowListener[] listeners = getWindowListeners();
 
+						for (WindowListener listener : listeners) {
+							listener.windowClosing(new WindowEvent(MainFrame.this, 0));
+						}
+					}		
+				}
+				else
+				{
+					prefsDialog.setDefaults(user, password, port);  					
+				}
+			}
+		});
+		
+		try {
+	    	dbConnector = new HibernateConnector(user, password, port);	 		    	
+	    	initFrame();
+		} catch (Exception e) {	
+			
+			int action = JOptionPane.showConfirmDialog(MainFrame.this, "Wrong username or password!",
+					"Warning", JOptionPane.OK_CANCEL_OPTION);
+
+			if (action == JOptionPane.OK_OPTION) {
+
+				prefsDialog.setVisible(true);
+			}	
+		}	
+		
+	}
+	
+	private void initFrame()
+	{		
 		controlPanel = ControlPanel.getInstance();
 		searchPanel = SearchPanel.getInstance();
-		toolBar = ToolBar.getInstance();
-		tablePanel = TablePanel.getInstance();
+		toolBar = ToolBar.getInstance();		
 		tabPane = new JTabbedPane();
-		messagePanel = new MessagePanel();
-		JScrollPane sTable = new JScrollPane(tablePanel);
+		messagePanel = new MessagePanel();		
+		fileChooser = new JFileChooser();
+		FileFilter filter = new FileNameExtensionFilter("Text Files .txt", "txt");	
+		fileChooser.setFileFilter(filter);
+		
+		setJMenuBar(createMenuBar());
+		
+		dBHiberTable = TablePanel.getInstance();
+		JScrollPane sTable = new JScrollPane(dBHiberTable);  
+	  
+	    dBHiberTable.connectDb();	   
 
 		splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, controlPanel, tabPane);
 		splitPane.setOneTouchExpandable(true);
@@ -98,11 +158,11 @@ public class MainFrame extends JFrame {
 
 		addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
-				tablePanel.disConnectDb();
+				dBHiberTable.disConnectDb();
 				dispose();
 				System.gc();
 			}
-		});
+		});	
 
 		setVisible(true);
 	}
@@ -115,6 +175,13 @@ public class MainFrame extends JFrame {
 		JMenuItem exportDataItem = new JMenuItem("Export Data");
 		JMenuItem importDataItem = new JMenuItem("Import Data");
 		JMenuItem exitItem = new JMenuItem("Exit");
+		JMenuItem prefsItem = new JMenuItem("Preferences...");
+
+		prefsItem.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				prefsDialog.setVisible(true);
+			}
+		});
 
 		exitItem.addActionListener(new ActionListener() {
 
@@ -140,7 +207,7 @@ public class MainFrame extends JFrame {
 				if (fileChooser.showSaveDialog(MainFrame.this) == JFileChooser.APPROVE_OPTION) {
 					File file = fileChooser.getSelectedFile();
 					try {
-						tablePanel.saveToFile(file);
+						dBHiberTable.saveToFile(file);
 					} catch (IOException e1) {
 						JOptionPane.showMessageDialog(MainFrame.this, "Error Export", "Error",
 								JOptionPane.ERROR_MESSAGE);
@@ -156,7 +223,7 @@ public class MainFrame extends JFrame {
 				if (fileChooser.showOpenDialog(MainFrame.this) == JFileChooser.APPROVE_OPTION) {
 					File file = fileChooser.getSelectedFile();
 					try {
-						tablePanel.loadFromFile(file);
+						dBHiberTable.loadFromFile(file);
 					} catch (IOException | ClassNotFoundException e1) {
 						JOptionPane.showMessageDialog(MainFrame.this, "Error Import", "Error",
 								JOptionPane.ERROR_MESSAGE);
@@ -170,7 +237,7 @@ public class MainFrame extends JFrame {
 		fileMenu.addSeparator();
 		fileMenu.add(exitItem);
 
-		JMenu widowMenu = new JMenu("Settings");
+		JMenu windowMenu = new JMenu("Settings");
 		JMenu showMenu = new JMenu("Show Form Panel");
 		JCheckBoxMenuItem checkItem = new JCheckBoxMenuItem("Show");
 		checkItem.setSelected(true);
@@ -189,10 +256,11 @@ public class MainFrame extends JFrame {
 		});
 
 		showMenu.add(checkItem);
-		widowMenu.add(showMenu);
+		windowMenu.add(showMenu);
+		windowMenu.add(prefsItem);
 
 		menuBar.add(fileMenu);
-		menuBar.add(widowMenu);
+		menuBar.add(windowMenu);
 
 		fileMenu.setMnemonic(KeyEvent.VK_F);
 		exitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_X, ActionEvent.CTRL_MASK));

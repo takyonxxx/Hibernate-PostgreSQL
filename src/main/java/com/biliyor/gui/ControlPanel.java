@@ -24,7 +24,14 @@ import javax.swing.ListSelectionModel;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 
+import com.biliyor.entity.HibernateConnector;
+
 public class ControlPanel extends JPanel {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 
 	private static ControlPanel instance;
 
@@ -75,14 +82,17 @@ public class ControlPanel extends JPanel {
 								System.out.println("No rows selected");
 							} else {
 								try {
-									int i = lsm.getMinSelectionIndex();
-
-									if (i >= 0) {
-										textId.setText(dBHiberTable.tableData.get(i).elementAt(0).toString());
-										textName.setText(dBHiberTable.tableData.get(i).elementAt(1).toString());
-										comboCity.getModel()
-												.setSelectedItem(dBHiberTable.tableData.get(i).elementAt(2).toString());
-										textDate.setText(dBHiberTable.tableData.get(i).elementAt(3).toString());
+									
+									int row = lsm.getMinSelectionIndex();
+									System.out.println("rows selected: " + row);
+									if (row >= 0) {
+										
+										String id = dBHiberTable.getModel().getValueAt(row, 0).toString();	
+										String name = dBHiberTable.getModel().getValueAt(row, 1).toString();	
+										String city = dBHiberTable.getModel().getValueAt(row, 2).toString();	
+										String date = dBHiberTable.getModel().getValueAt(row, 3).toString();	
+										
+										settextFields(id, name, city, date);
 									}
 								} catch (Exception e) {
 									System.out.println(e.getMessage());
@@ -106,8 +116,16 @@ public class ControlPanel extends JPanel {
 		textDate.setText(sDate);
 
 	}
+	
+	private void settextFields(String id, String name, String city, String date) {
+		
+		textId.setText(id);
+		textName.setText(name);
+		comboCity.getModel().setSelectedItem(city);
+		textDate.setText(date);
+	}
 
-	public static boolean isEmpty(JTable jTable) {
+	private static boolean isEmpty(JTable jTable) {
 		if (jTable != null && jTable.getModel() != null) {
 			return jTable.getModel().getRowCount() <= 0 ? true : false;
 		}
